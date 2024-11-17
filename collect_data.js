@@ -11,7 +11,6 @@ const csvWriter = createCsvWriter({
         { id: 'anime_status', title: 'Статус' },
         { id: 'anime_type', title: 'Тип' },
         { id: 'anime_genres', title: 'Жанры' },
-        { id: 'anime_themes', title: 'Темы' },
         { id: 'anime_episodes_num', title: 'Количество эпизодов' },
         { id: 'anime_rating', title: 'Оценка пользователей' },
         { id: 'anime_release_year', title: 'Год выхода' },
@@ -37,7 +36,11 @@ function send_request(anime_id){
         //console.log(anime_name_en);
         const anime_type = $("div.b-entry-info .line-container .line .value")[0].children[0].data; // тип
         //console.log(anime_type);
-        const anime_status = $("span.b-anime_status_tag").attr("data-text"); // статус
+        const anime_status_html = $("span.b-anime_status_tag").attr("data-text"); // статус
+        let anime_status = "";
+        if (anime_status_html == 'онгоинг') anime_status = "Ещё выходит";
+        else if (anime_status_html == "вышло") anime_status = "Вышло";
+        else anime_status = "Анонсировано";
         //console.log(anime_status);
         const anime_rating = Number($("div.score-value")[0].children[0].data); // рейтинг
         //console.log(anime_rating);
@@ -66,11 +69,35 @@ function send_request(anime_id){
         const lines_count = $("div.b-entry-info .line-container").length;
         let anime_episodes_num = $("div.b-entry-info .line-container .value")[1].children[0].data;
         //console.log(anime_episodes_num);
-        let anime_age_limit = $("div.b-entry-info .line-container .value")[6].children[0].attribs.title
+        let anime_age_limit_html = $("div.b-entry-info .line-container .value")[6].children[0].attribs.title
         .split(' ')[0].trim();
+        let anime_age_limit = 0;
+        switch (anime_age_limit_html){
+            case "PG":
+                anime_age_limit = 6;
+                break;
+            case "PG-13":
+                anime_age_limit = 13;
+                break;
+            case "R-17":
+                anime_age_limit = 17;
+                break;
+            case "R+":
+                anime_age_limit = 18;
+                break;
+            case "RX":
+                anime_age_limit = "WARNING: DELETE HENTAI NOW";
+                break;
+            default:
+                break;
+        }
         //console.log(anime_age_limit);
-        let anime_release_year = 0;
-        let anime_themes = [];
+        let anime_release_year = $("div.b-entry-info .line-container .value")[3].children[1]
+        .next.attribs.title.split(' по ')[0].replace('С ', '', 1).replace(' г.', '', 1).split(' ').at(-1);
+        //let anime_release_year = $("div.b-entry-info .line-container .value")[4].children[1].data
+        //.split(' по ')[0].replace('С ', '', 1).replace(' г.', '', 1).split(' ').at(-1); // для онгоингов
+        
+        console.log(anime_release_year);
         /*for (let line = 0; line < lines_count; line++){
             const param_key = $("div.b-entry-info .line-container .key")[line].children[0].data
             .replace(':', '', 1).trim();
@@ -92,4 +119,4 @@ function send_request(anime_id){
     });
 
 }
-send_request(anime_id);
+send_request(1);
