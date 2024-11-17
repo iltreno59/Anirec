@@ -72,10 +72,7 @@ function send_request(anime_id) {
                             anime_episodes_num = Number(param_value.children[0].data.split(' / ')[0]);
                             break;
                         case "Статус":
-                            if (anime_status == 'Вышло') anime_release_year = Number(param_value.children[1]
-                                .next.attribs.title
-                                .split(' по ')[0].replace('С ', '', 1).replace(' г.', '', 1).split(' ').at(-1));
-                            else if (anime_status == 'Ещё выходит') anime_release_year = Number(param_value
+                            anime_release_year = Number(param_value
                                 .children[1].data
                                 .split(' по ')[0].replace('С ', '', 1).replace(' г.', '', 1).split(' ').at(-1));
                             break;
@@ -148,7 +145,7 @@ async function assignLatestAnimeId() {
 
 async function main() {
     await assignLatestAnimeId();
-    while (anime_id <= 5) {
+    while (anime_id <= 21) {
         try{
             await send_request(anime_id);
         }
