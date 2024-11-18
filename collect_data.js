@@ -49,6 +49,7 @@ function send_request(anime_id) {
                     anime_genres.push(anime_genres_html[genre].children[0].data);
                 }
                 let anime_age_limit = 0;
+                let anime_episodes_num = 1;
 
                 const lines_count = $("div.b-entry-info .line-container .key").length;
                 for (let line = 0; line < lines_count; line++) {
@@ -103,7 +104,7 @@ function send_request(anime_id) {
                     release_year: String(anime_release_year),
                     age_limit: String(anime_age_limit)
                 };
-                console.log(anime);
+                //console.log(anime);
                 animes.push(anime);
                 resolve();
             })
@@ -132,7 +133,7 @@ async function assignLatestAnimeId() {
 
 async function main() {
     await assignLatestAnimeId();
-    while (anime_id <= 21) {
+    while (anime_id <= 5) {
         try{
             await send_request(anime_id);
         }
@@ -141,7 +142,11 @@ async function main() {
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
-    await csvWriter.writeRecords(animes);
+    console.log(animes);
+    await csvWriter.writeRecords(animes)
+    .then(() => {
+        console.log('...Done writing');
+    });
     console.log(`Количество записей: ${animes.length}`);
     console.log(`Количество столбцов: ${Object.keys(animes[0]).length}`);
 }
