@@ -41,7 +41,11 @@ function send_request(anime_id) {
                 let anime_status = "";
                 if (anime_status_html == 'онгоинг') anime_status = "Ещё выходит";
                 else if (anime_status_html == "вышло") anime_status = "Вышло";
-                else anime_status = "Анонсировано";
+                else{
+                    anime_status = "Анонсировано";
+                    resolve();
+                    return;
+                }
                 const anime_rating = Number($("div.score-value")[0].children[0].data); // рейтинг
                 const anime_genres = [];
                 const anime_genres_html = $("div.b-entry-info .line-container .value .genre-ru");
@@ -61,10 +65,19 @@ function send_request(anime_id) {
                             anime_episodes_num = Number(param_value.children[0].data.split(' / ')[0]);
                             break;
                         case "Статус":
+                            if (anime_type == "TV Сериал" && anime_status != "Ещё выходит"){
                             anime_release_year = Number(param_value
-                                .children[1].data
-                                .split(' по ')[0].replace('С ', '', 1).replace(' г.', '', 1).split(' ').at(-1));
-                            break;
+                                .children[1].next.attribs.title.trim()
+                                .split(' по ')[0].replace('С ', '', 1).replace(' г.', '', 1)
+                                .replace(' гг.', '').replace('в ', '').split('-')[0].split(' ').at(-1));
+                            }
+                            else{
+                            anime_release_year = Number(param_value
+                                .children[1].data.trim()
+                                .split(' по ')[0].replace('С ', '', 1).replace(' г.', '', 1)
+                                .replace(' гг.', '').replace('в ', '').split('-')[0].split(' ').at(-1));
+                            }
+                                break;
                         case "Рейтинг":
                                 let anime_age_limit_html = param_value.children[0].attribs.title
                                 .split(' ')[0].trim();
@@ -133,7 +146,7 @@ async function assignLatestAnimeId() {
 
 async function main() {
     await assignLatestAnimeId();
-    while (anime_id <= 5) {
+    while (anime_id <= 21) {
         try{
             await send_request(anime_id);
         }
@@ -151,4 +164,31 @@ async function main() {
     console.log(`Количество столбцов: ${Object.keys(animes[0]).length}`);
 }
 
-main();
+//main();
+records = [
+    {
+      id: '1',
+      name_ru: 'Ковбой Бибоп',
+      name_en: 'Cowboy Bebop',
+      type: 'TV Сериал',
+      state: 'Вышло',
+      genres: 'Экшен;Фантастика;Удостоено наград;Взрослые персонажи;Космос',
+      episodes_num: '26',
+      rating: '8.75',
+      release_year: '1998',
+      age_limit: '18'
+    },
+    {
+      id: '5',
+      name_ru: 'Ковбой Бибоп: Достучаться до небес',
+      name_en: 'Cowboy Bebop: Tengoku no Tobira',
+      type: 'Фильм',
+      state: 'Вышло',
+      genres: 'Экшен;Фантастика;Взрослые персонажи;Космос',
+      episodes_num: '1',
+      rating: '8.38',
+      release_year: '2001',
+      age_limit: '18'
+    }
+  ]
+csvWriter.writeRecords(records);
