@@ -5,16 +5,16 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csvWriter = createCsvWriter({
     path: 'anirec_data.csv',
     header: [
-        { id: 'anime_id', title: 'ID аниме' },
+        //{ id: 'anime_id', title: 'ID аниме' },
         { id: 'anime_name_ru', title: 'Название на русском' },
         { id: 'anime_name_en', title: 'Название на английском' },
-        { id: 'anime_status', title: 'Статус' },
-        { id: 'anime_type', title: 'Тип' },
-        { id: 'anime_genres', title: 'Жанры' },
-        { id: 'anime_episodes_num', title: 'Количество эпизодов' },
-        { id: 'anime_rating', title: 'Оценка пользователей' },
-        { id: 'anime_release_year', title: 'Год выхода' },
-        { id: 'anime_age_limit', title: 'Возрастное ограничение' }
+        //{ id: 'anime_status', title: 'Статус' },
+        //{ id: 'anime_type', title: 'Тип' },
+        //{ id: 'anime_genres', title: 'Жанры' },
+        //{ id: 'anime_episodes_num', title: 'Количество эпизодов' },
+        //{ id: 'anime_rating', title: 'Оценка пользователей' },
+        //{ id: 'anime_release_year', title: 'Год выхода' },
+        //{ id: 'anime_age_limit', title: 'Возрастное ограничение' }
     ],
     fieldDelimiter: ','
 });
@@ -167,28 +167,20 @@ async function main() {
 //main();
 records = [
     {
-      id: '1',
+      //id: '1',
       name_ru: 'Ковбой Бибоп',
       name_en: 'Cowboy Bebop',
-      type: 'TV Сериал',
-      state: 'Вышло',
-      genres: 'Экшен;Фантастика;Удостоено наград;Взрослые персонажи;Космос',
-      episodes_num: '26',
-      rating: '8.75',
-      release_year: '1998',
-      age_limit: '18'
+      //state: 'Вышло',
+      //type: 'TV Сериал',
+      //genres: 'Экшен;Фантастика;Удостоено наград;Взрослые персонажи;Космос',
+      //episodes_num: '26',
+      //rating: '8.75',
+      //release_year: '1998',
+      //age_limit: '18'
     },
     {
-      id: '5',
-      name_ru: 'Ковбой Бибоп: Достучаться до небес',
-      name_en: 'Cowboy Bebop: Tengoku no Tobira',
-      type: 'Фильм',
-      state: 'Вышло',
-      genres: 'Экшен;Фантастика;Взрослые персонажи;Космос',
-      episodes_num: '1',
-      rating: '8.38',
-      release_year: '2001',
-      age_limit: '18'
+        name_ru: 'Что угодно',
+        name_en: 'Whatever'
     }
-  ]
+  ];
 csvWriter.writeRecords(records);
