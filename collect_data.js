@@ -15,8 +15,7 @@ const csvWriter = createCsvWriter({
         { id: 'rating', title: 'Оценка пользователей' },
         { id: 'release_year', title: 'Год выхода' },
         { id: 'age_limit', title: 'Возрастное ограничение' }
-    ],
-    fieldDelimiter: ','
+    ]
 });
 
 const animes = [];
@@ -163,7 +162,7 @@ async function assignLatestAnimeId() {
 
 async function main() {
     await assignLatestAnimeId();
-    while (anime_id <= 200) {
+    while (anime_id <= latest_anime_id) {
         try{
             await send_request(anime_id);
         }
