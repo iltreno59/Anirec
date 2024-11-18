@@ -42,16 +42,26 @@ function send_request(anime_id) {
                 }
                 const anime_name_en = $("h1")[0].children[2].data.trim(); // название на английском 
                 const anime_type = $("div.b-entry-info .line-container .line .value")[0].children[0].data; // тип
+                if (anime_type != "TV Сериал" && anime_type != "Фильм"){
+                    console.log(`Anime with ID ${anime_id} is neither a tv show nor film. Skipping...`);
+                    resolve();
+                    return;
+                }
                 const anime_status_html = $("span.b-anime_status_tag").attr("data-text"); // статус
                 let anime_status = "";
                 if (anime_status_html == 'онгоинг') anime_status = "Ещё выходит";
                 else if (anime_status_html == "вышло") anime_status = "Вышло";
                 else{
-                    anime_status = "Анонсировано";
+                    console.log(`Anime with ID ${anime_id} is only anoinced. Skipping...`);
                     resolve();
                     return;
                 }
                 const anime_rating = Number($("div.score-value")[0].children[0].data); // рейтинг
+                if (anime_rating < 6){
+                    console.log(`Anime with ID ${anime_id} is too bad. Skipping...`);
+                    resolve();
+                    return;
+                }
                 const anime_genres = [];
                 const anime_genres_html = $("div.b-entry-info .line-container .value .genre-ru");
                 for (let genre = 0; genre < anime_genres_html.length; genre++) {
@@ -101,7 +111,9 @@ function send_request(anime_id) {
                                         break;
                                     case "RX":
                                         anime_age_limit = "WARNING: DELETE HENTAI NOW";
-                                        break;
+                                        console.log(`Anime with ID ${anime_id} is hentai. Skipping...`);
+                                        resolve();
+                                        return;
                                     default:
                                         break;
                                 }
@@ -151,13 +163,13 @@ async function assignLatestAnimeId() {
 
 async function main() {
     await assignLatestAnimeId();
-    while (anime_id <= latest_anime_id) {
+    while (anime_id <= 200) {
         try{
             await send_request(anime_id);
         }
         finally{
             anime_id++;
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
     //console.log(animes);
