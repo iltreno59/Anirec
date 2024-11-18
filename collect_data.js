@@ -5,16 +5,16 @@ const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const csvWriter = createCsvWriter({
     path: 'anirec_data.csv',
     header: [
-        //{ id: 'anime_id', title: 'ID аниме' },
-        { id: 'anime_name_ru', title: 'Название на русском' },
-        { id: 'anime_name_en', title: 'Название на английском' },
-        //{ id: 'anime_status', title: 'Статус' },
-        //{ id: 'anime_type', title: 'Тип' },
-        //{ id: 'anime_genres', title: 'Жанры' },
-        //{ id: 'anime_episodes_num', title: 'Количество эпизодов' },
-        //{ id: 'anime_rating', title: 'Оценка пользователей' },
-        //{ id: 'anime_release_year', title: 'Год выхода' },
-        //{ id: 'anime_age_limit', title: 'Возрастное ограничение' }
+        { id: 'id', title: 'ID аниме' },
+        { id: 'name_ru', title: 'Название на русском' },
+        { id: 'name_en', title: 'Название на английском' },
+        { id: 'state', title: 'Статус' },
+        { id: 'type', title: 'Тип' },
+        { id: 'genres', title: 'Жанры' },
+        { id: 'episodes_num', title: 'Количество эпизодов' },
+        { id: 'rating', title: 'Оценка пользователей' },
+        { id: 'release_year', title: 'Год выхода' },
+        { id: 'age_limit', title: 'Возрастное ограничение' }
     ],
     fieldDelimiter: ','
 });
@@ -35,6 +35,11 @@ function send_request(anime_id) {
                 }
                 const $ = cheerio.load(response.data);
                 const anime_name_ru = $("h1")[0].children[0].data.trim(); // название на русском
+                if (anime_name_ru == 'Эта страница содержит "взрослый" контент, просматривать который могут только совершеннолетние пользователи.'){
+                    console.log(`Anime with ID ${anime_id} is only for adults. Skipping...`);
+                    resolve();
+                    return;
+                }
                 const anime_name_en = $("h1")[0].children[2].data.trim(); // название на английском 
                 const anime_type = $("div.b-entry-info .line-container .line .value")[0].children[0].data; // тип
                 const anime_status_html = $("span.b-anime_status_tag").attr("data-text"); // статус
@@ -106,16 +111,16 @@ function send_request(anime_id) {
                     }
                 }
                 const anime = {
-                    id: String(anime_id),
+                    id: anime_id,
                     name_ru: anime_name_ru.replace(';', ' '),
                     name_en: anime_name_en.replace(';', ' '),
                     type: anime_type,
                     state: anime_status,
                     genres: anime_genres.join(';'),
-                    episodes_num: String(anime_episodes_num),
-                    rating: String(anime_rating),
-                    release_year: String(anime_release_year),
-                    age_limit: String(anime_age_limit)
+                    episodes_num: anime_episodes_num,
+                    rating: anime_rating,
+                    release_year: anime_release_year,
+                    age_limit: anime_age_limit
                 };
                 //console.log(anime);
                 animes.push(anime);
@@ -126,7 +131,7 @@ function send_request(anime_id) {
                     console.log(`Anime with ID ${anime_id} not found. Skipping...`);
                     resolve();
                 } else {
-                    console.error('Error fetching data:', error);
+                    console.error(`Error fetching data at anime id = ${anime_id}:`, error);
                     reject(error);
                 }
             });
@@ -146,16 +151,16 @@ async function assignLatestAnimeId() {
 
 async function main() {
     await assignLatestAnimeId();
-    while (anime_id <= 21) {
+    while (anime_id <= latest_anime_id) {
         try{
             await send_request(anime_id);
         }
         finally{
             anime_id++;
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
     }
-    console.log(animes);
+    //console.log(animes);
     await csvWriter.writeRecords(animes)
     .then(() => {
         console.log('...Done writing');
@@ -164,23 +169,4 @@ async function main() {
     console.log(`Количество столбцов: ${Object.keys(animes[0]).length}`);
 }
 
-//main();
-records = [
-    {
-      //id: '1',
-      name_ru: 'Ковбой Бибоп',
-      name_en: 'Cowboy Bebop',
-      //state: 'Вышло',
-      //type: 'TV Сериал',
-      //genres: 'Экшен;Фантастика;Удостоено наград;Взрослые персонажи;Космос',
-      //episodes_num: '26',
-      //rating: '8.75',
-      //release_year: '1998',
-      //age_limit: '18'
-    },
-    {
-        name_ru: 'Что угодно',
-        name_en: 'Whatever'
-    }
-  ];
-csvWriter.writeRecords(records);
+main();
