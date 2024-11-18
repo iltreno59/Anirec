@@ -14,8 +14,7 @@ const csvWriter = createCsvWriter({
         { id: 'anime_episodes_num', title: 'Количество эпизодов' },
         { id: 'anime_rating', title: 'Оценка пользователей' },
         { id: 'anime_release_year', title: 'Год выхода' },
-        { id: 'anime_age_limit', title: 'Возрастное ограничение' },
-        { id: 'anime_description', title: 'Описание' }
+        { id: 'anime_age_limit', title: 'Возрастное ограничение' }
     ],
     fieldDelimiter: ','
 });
@@ -44,17 +43,6 @@ function send_request(anime_id) {
                 else if (anime_status_html == "вышло") anime_status = "Вышло";
                 else anime_status = "Анонсировано";
                 const anime_rating = Number($("div.score-value")[0].children[0].data); // рейтинг
-                const anime_description_parts = $("div.b-text_with_paragraphs")[0].children;
-                let anime_description = "";
-                for (let part of anime_description_parts) {
-                    if (part.name == 'a') {
-                        anime_description += JSON.parse(part.attribs['data-attrs']).russian;
-                    } else if (part.name == 'br') {
-                        anime_description += "";
-                    } else {
-                        anime_description += part.data;
-                    }
-                }
                 const anime_genres = [];
                 const anime_genres_html = $("div.b-entry-info .line-container .value .genre-ru");
                 for (let genre = 0; genre < anime_genres_html.length; genre++) {
@@ -104,17 +92,16 @@ function send_request(anime_id) {
                     }
                 }
                 const anime = {
-                    id: anime_id,
-                    name_ru: anime_name_ru,
-                    name_en: anime_name_en,
+                    id: String(anime_id),
+                    name_ru: anime_name_ru.replace(';', ' '),
+                    name_en: anime_name_en.replace(';', ' '),
                     type: anime_type,
                     state: anime_status,
-                    genres: anime_genres,
-                    episodes_num: anime_episodes_num,
-                    rating: anime_rating,
-                    release_year: anime_release_year,
-                    age_limit: anime_age_limit,
-                    description: anime_description
+                    genres: anime_genres.join(';'),
+                    episodes_num: String(anime_episodes_num),
+                    rating: String(anime_rating),
+                    release_year: String(anime_release_year),
+                    age_limit: String(anime_age_limit)
                 };
                 console.log(anime);
                 animes.push(anime);
@@ -151,7 +138,7 @@ async function main() {
         }
         finally{
             anime_id++;
-            await new Promise(resolve => setTimeout(resolve, 100));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
     await csvWriter.writeRecords(animes);
