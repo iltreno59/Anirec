@@ -35,14 +35,20 @@ function send_request(anime_id) {
                 const $ = cheerio.load(response.data);
                 const anime_name_ru = $("h1")[0].children[0].data.trim(); // название на русском
                 if (anime_name_ru == 'Эта страница содержит "взрослый" контент, просматривать который могут только совершеннолетние пользователи.'){
-                    console.log(`Anime with ID ${anime_id} is only for adults. Skipping...`);
+                    let data = `${new Date().toUTCString()} : Anime with number ${anime_id} is only for adults. Skipping...\n`;
+                    fs.appendFile("logs.txt", data, function(err){
+                    if (err) throw err;
+                    })
                     resolve();
                     return;
                 }
                 const anime_name_en = $("h1")[0].children[2].data.trim(); // название на английском 
                 const anime_type = $("div.b-entry-info .line-container .line .value")[0].children[0].data; // тип
                 if (anime_type != "TV Сериал" && anime_type != "Фильм"){
-                    console.log(`Anime with ID ${anime_id} is neither a tv show nor film. Skipping...`);
+                    let data = `${new Date().toUTCString()} : Anime with number ${anime_id} is neither a tv show nor film. Skipping...\n`;
+                    fs.appendFile("logs.txt", data, function(err){
+                    if (err) throw err;
+                    })
                     resolve();
                     return;
                 }
@@ -51,13 +57,19 @@ function send_request(anime_id) {
                 if (anime_status_html == 'онгоинг') anime_status = "Ещё выходит";
                 else if (anime_status_html == "вышло") anime_status = "Вышло";
                 else{
-                    console.log(`Anime with ID ${anime_id} is only anoinced. Skipping...`);
+                    let data = `${new Date().toUTCString()} : Anime with number ${anime_id} is only anounced. Skipping...\n`;
+                    fs.appendFile("logs.txt", data, function(err){
+                    if (err) throw err;
+                    })
                     resolve();
                     return;
                 }
                 const anime_rating = Number($("div.score-value")[0].children[0].data); // рейтинг
                 if (anime_rating < 6){
-                    console.log(`Anime with ID ${anime_id} is too bad. Skipping...`);
+                    let data = `${new Date().toUTCString()} : Anime with number ${anime_id} is too bad. Skipping...\n`;
+                    fs.appendFile("logs.txt", data, function(err){
+                    if (err) throw err;
+                    })
                     resolve();
                     return;
                 }
@@ -110,7 +122,10 @@ function send_request(anime_id) {
                                         break;
                                     case "RX":
                                         anime_age_limit = "WARNING: DELETE HENTAI NOW";
-                                        console.log(`Anime with ID ${anime_id} is hentai. Skipping...`);
+                                        let data = `${new Date().toUTCString()} : Anime with number ${anime_id} is hentai. Skipping...\n`;
+                                        fs.appendFile("logs.txt", data, function(err){
+                                        if (err) throw err;
+                                        })
                                         resolve();
                                         return;
                                     default:
