@@ -1,7 +1,8 @@
 const axios = require('axios')
 const cheerio = require('cheerio');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
-const fs = require("fs");
+const fs = require('fs');
+const consts = require('./consts.js');
 
 const csvWriter = createCsvWriter({
     path: 'anirec_data.csv',
@@ -163,10 +164,11 @@ function send_request(anime_id) {
                     })
                     resolve();
                 } else {
-                    let data = `${new Date().toUTCString()} : Error fetching data at anime id = ${anime_id}:, error\n`;
+                    let data = `${new Date().toUTCString()} : Error fetching data at anime id = ${anime_id}:, ${error}\n`;
                     fs.appendFile("logs.txt", data, function(err){
                     if (err) throw err;
                     })
+                    writeToCSV();
                     reject(error);
                 }
             });
@@ -184,6 +186,15 @@ async function assignLatestAnimeId() {
     latest_anime_id = await find_last_anime();
 }
 
+async function writeToCSV(){
+    await csvWriter.writeRecords(animes)
+    .then(() => {
+        console.log('...Done writing');
+    });
+    console.log(`Количество записей: ${animes.length}`);
+    console.log(`Количество столбцов: ${Object.keys(animes[0]).length}`);
+}
+
 async function main() {
     await assignLatestAnimeId();
     while (anime_id <= latest_anime_id) {
@@ -196,12 +207,7 @@ async function main() {
         }
     }
     //console.log(animes);
-    await csvWriter.writeRecords(animes)
-    .then(() => {
-        console.log('...Done writing');
-    });
-    console.log(`Количество записей: ${animes.length}`);
-    console.log(`Количество столбцов: ${Object.keys(animes[0]).length}`);
+    await writeToCSV();
 }
 
 main();
