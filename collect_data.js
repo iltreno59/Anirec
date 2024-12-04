@@ -1,6 +1,7 @@
 const axios = require('axios')
 const cheerio = require('cheerio');
 const createCsvWriter = require('csv-writer').createObjectCsvWriter;
+const fs = require("fs");
 
 const csvWriter = createCsvWriter({
     path: 'anirec_data.csv',
@@ -12,7 +13,6 @@ const csvWriter = createCsvWriter({
         { id: 'type', title: 'Тип' },
         { id: 'genres', title: 'Жанры' },
         { id: 'episodes_num', title: 'Количество эпизодов' },
-        { id: 'rating', title: 'Оценка пользователей' },
         { id: 'release_year', title: 'Год выхода' },
         { id: 'age_limit', title: 'Возрастное ограничение' }
     ]
@@ -129,20 +129,29 @@ function send_request(anime_id) {
                     state: anime_status,
                     genres: anime_genres.join(';'),
                     episodes_num: anime_episodes_num,
-                    rating: anime_rating,
                     release_year: anime_release_year,
                     age_limit: anime_age_limit
                 };
                 //console.log(anime);
+                let data = `${new Date().toUTCString()} : Anime number ${anime_id} written successfully\n`;
+                fs.appendFile("logs.txt", data, function(err){
+                if (err) throw err;
+                })
                 animes.push(anime);
                 resolve();
             })
             .catch(error => {
                 if (error.response && error.response.status === 404) {
-                    console.log(`Anime with ID ${anime_id} not found. Skipping...`);
+                    let data = `${new Date().toUTCString()} : Anime with ID ${anime_id} not found. Skipping...\n`;
+                    fs.appendFile("logs.txt", data, function(err){
+                    if (err) throw err;
+                    })
                     resolve();
                 } else {
-                    console.error(`Error fetching data at anime id = ${anime_id}:`, error);
+                    let data = `${new Date().toUTCString()} : Error fetching data at anime id = ${anime_id}:, error\n`;
+                    fs.appendFile("logs.txt", data, function(err){
+                    if (err) throw err;
+                    })
                     reject(error);
                 }
             });
