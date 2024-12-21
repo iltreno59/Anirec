@@ -1,32 +1,29 @@
 import pandas as pd
 import numpy as np
-from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestRegressor
-from sklearn.metrics import mean_squared_error
-import re
 import psycopg2
 import subprocess
 import conn_options
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, CallbackContext, ContextTypes, ApplicationBuilder, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 from anirec_token import TOKEN
+
+# Глобальные переменные
+predictions = []  # Список для хранения предсказаний
+index = 0  # Глобальный индекс для отслеживания текущего аниме
+user_name = None  # Глобальная переменная для хранения имени пользователя
 
 class Anime:
     def __init__(self, name_ru, anime_type, genres, episodes_num, release_year, age_limit, user_rating):
-        self.name_ru = name_ru,
-        self.anime_type = anime_type,
-        self.genres = genres,
-        self.episodes_num = episodes_num,
-        self.release_year = release_year,
-        self.age_limit = age_limit,
-        self.user_rating = user_rating
-
-
-
+        self.name_ru = name_ru  # Убрали запятую
+        self.anime_type = anime_type  # Убрали запятую
+        self.genres = genres  # Убрали запятую
+        self.episodes_num = episodes_num  # Убрали запятую
+        self.release_year = release_year  # Убрали запятую
+        self.age_limit = age_limit  # Убрали запятую
+        self.user_rating = user_rating  # Убрали запятую
 
 def run_collect_data_user(url):
     try:
@@ -34,18 +31,18 @@ def run_collect_data_user(url):
         return result.stdout
     except Exception as e:
         return f"Ошибка при выполнении скрипта: {e}"
-# Обработчик команды /start
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Привет! Я бот Anirec. Могу подобрать аниме вам по вкусам. Для этого отправьте мне имя пользователя на Шикимори.')
 
-# Обработчик текстовых сообщений
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_name = str(update.message.text)
+    global user_name, predictions, index  # Используем глобальные переменные
+
+    user_name = str(update.message.text)  # Сохраняем имя пользователя
     link = f"https://shikimori.one/{user_name.replace(' ', '+')}/list/anime?order=rate_score"
     await update.message.reply_text("Приступаю к работе...")
     run_collect_data_user(link)
 
-    # Параметры подключения к базе данных
     conn_params = {
         "dbname": conn_options.db_name,
         "user": conn_options.user_name,
@@ -62,7 +59,6 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Ошибка при подключении к базе данных. Попробуйте позже.")
         return
 
-    # SQL-запрос для получения данных пользователя
     select_query1 = f"""
     SELECT shiki_data.name_ru, shiki_data.type, shiki_data.genres, 
     shiki_data.episodes_num,
@@ -90,11 +86,9 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Ошибка при выполнении запроса к базе данных. Попробуйте позже.")
         return
 
-    # Преобразуем данные в DataFrame
     data = []
     for anime in user_list:
-        anime_xy = [anime.name_ru[0], anime.anime_type[0], anime.genres[0], anime.episodes_num[0], anime.release_year[0], anime.age_limit[0], anime.user_rating]
-        print(anime_xy)
+        anime_xy = [anime.name_ru, anime.anime_type, anime.genres, anime.episodes_num, anime.release_year, anime.age_limit, anime.user_rating]
         data.append(anime_xy)
 
     df = pd.DataFrame(data, columns=["Название", "Тип", "Жанры", "Эпизоды", "Год выпуска", "Возрастной рейтинг", "Оценка"])
@@ -103,34 +97,24 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("Собрал все данные о ваших предпочтениях, подбираю варианты...")
 
-    # Преобразование жанров в векторы с использованием TfidfVectorizer
     genre_vectorizer = TfidfVectorizer()
     genres_vectors = genre_vectorizer.fit_transform(df["Жанры"])
     genres_df = pd.DataFrame(genres_vectors.toarray(), columns=genre_vectorizer.get_feature_names_out())
 
-    # Нормализация числовых признаков (Эпизоды, Возрастной рейтинг, Год выпуска)
     numerical_features = df[["Эпизоды", "Возрастной рейтинг", "Год выпуска"]]
-
-    # Проверка на пустые значения и замена их на 0
     numerical_features = numerical_features.fillna(0)
-
-    # Убедимся, что все значения числовые
     numerical_features = numerical_features.astype(float)
 
-    # Нормализация числовых признаков
     scaler = StandardScaler()
     numerical_features = scaler.fit_transform(numerical_features)
     numerical_df = pd.DataFrame(numerical_features, columns=["Эпизоды", "Возрастной рейтинг", "Год выпуска"])
 
-    # Объединение всех признаков
     X = pd.concat([pd.DataFrame(df["Тип"]), genres_df, numerical_df], axis=1)
     y = df["Оценка"]  # Целевая переменная
 
-    # Используем случайный лес для регрессии
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, y)
 
-    # SQL-запрос для получения данных о новых аниме
     select_query2 = f"""
     SELECT id, name_ru, type, state, genres, episodes_num, release_year, age_limit 
     FROM shiki_data WHERE id NOT IN(
@@ -138,10 +122,12 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     """
 
-    predictions = {}
     try:
         cursor.execute(select_query2)
         for row in cursor:
+            if row[5] is None or row[6] is None or row[7] is None:
+                continue  # Пропускаем строки с пустыми значениями
+
             sample = {
                 "Тип": 0 if row[2] == 'TV Сериал' else 1,
                 "Жанры": row[4],
@@ -150,48 +136,100 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "Возрастной рейтинг": row[7]
             }
 
-            # Преобразуем жанры в вектор
             sample_genres = genre_vectorizer.transform([sample["Жанры"]])
-
-            # Преобразуем числовые признаки
             sample_numerical = scaler.transform([[sample["Эпизоды"], sample["Возрастной рейтинг"], sample["Год выпуска"]]])
-
-            # Объединяем признаки
             sample_X = np.hstack([[[sample["Тип"]]], sample_genres.toarray(), sample_numerical])
 
-            # Предсказываем оценку
             pred = model.predict(sample_X)
-            predictions[row[1]] = pred[0]  # Сохраняем предсказание
+            predictions.append((row[1], pred[0]))  # Добавляем предсказание в список
 
-        # Отсортируем predictions по предсказанной оценке в порядке убывания
-        sorted_predictions = sorted(predictions.items(), key=lambda x: x[1], reverse=True)
+        sorted_predictions = sorted(predictions, key=lambda x: x[1], reverse=True)
+        predictions = sorted_predictions  # Обновляем список предсказаний
 
-        # Выберем аниме с самым высоким рейтингом
-        top_anime = sorted_predictions[0]
-
-        # Отправляем результат пользователю
-        await update.message.reply_text(f"Я рекомендую вам посмотреть: {top_anime[0]}")
+        await show_next_anime(update, context)
     except psycopg2.Error as e:
         print("Ошибка при выполнении SQL-запроса:", e)
         await update.message.reply_text("Ошибка при выполнении запроса к базе данных. Попробуйте позже.")
         return
-    
 
+async def show_next_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    global index, predictions  # Используем глобальные переменные
 
-# Обработчик команды /help
+    # Определяем, откуда пришло сообщение: из текстового сообщения или из callback_query
+    message = update.message or update.callback_query.message
+
+    if index >= len(predictions):
+        await message.reply_text("Все аниме из списка были предложены.")
+        return
+
+    anime_name, anime_rating = predictions[index]
+
+    select_anime_query = f"""
+    SELECT * FROM shiki_data WHERE name_ru = '{anime_name}'
+    """
+
+    conn_params = {
+        "dbname": conn_options.db_name,
+        "user": conn_options.user_name,
+        "password": conn_options.password,
+        "host": conn_options.host,
+        "port": conn_options.port 
+    }
+
+    try:
+        conn = psycopg2.connect(**conn_params)
+        cursor = conn.cursor()
+    except psycopg2.Error as e:
+        print("Ошибка при подключении к базе данных:", e)
+        await update.message.reply_text("Ошибка при подключении к базе данных. Попробуйте позже.")
+        return
+
+    anime_type = ''
+    anime_state = ''
+    anime_episodes = 0
+    anime_age_limit = 0
+    anime_release_year = 0
+    anime_genres = ''
+    anime_description = ''
+    try:
+        cursor.execute(select_anime_query)
+        for row in cursor:
+            anime_type = row[3]
+            anime_state = row[4]
+            anime_genres = row[5]
+            anime_episodes = row[6]
+            anime_release_year = row[7]
+            anime_age_limit = row[8]
+            anime_description = row[11].replace('undefined', '')
+    except psycopg2.Error as e:
+        print("Ошибка при выполнении SQL-запроса:", e)
+        await update.message.reply_text("Ошибка при выполнении запроса к базе данных. Попробуйте позже.")
+        return
+
+    keyboard = [[InlineKeyboardButton("Следующее", callback_data="next_anime")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    await message.reply_text(f"Я рекомендую вам посмотреть: {anime_name}\nТип: {anime_type}\nСтатус: {anime_state}\nЧисло эпизодов: {anime_episodes}\nЖанры: {anime_genres.replace(';', ', ')}\nГод выхода: {anime_release_year}\nВозрастное ограничение: {anime_age_limit}+\nОписание:\n{anime_description}", reply_markup=reply_markup)
+
+    index += 1  # Увеличиваем индекс для следующего аниме
+
+async def next_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Подтверждаем нажатие
+
+    await show_next_anime(update, context)
+
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Привет! Я бот Anirec. Могу подобрать аниме вам по вкусам. Для этого отправьте мне имя пользователя на Шикимори.')
-# Основная функция
+
 def main():
-    # Создаем приложение бота
     application = ApplicationBuilder().token(TOKEN).build()
 
-    # Регистрируем обработчики
     application.add_handler(CommandHandler('start', start))
     application.add_handler(CommandHandler('help', help_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, echo))
+    application.add_handler(CallbackQueryHandler(next_anime_handler))
 
-    # Запускаем бота
     application.run_polling()
 
 if __name__ == '__main__':
