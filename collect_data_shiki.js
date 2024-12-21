@@ -1,26 +1,9 @@
 const axios = require('axios')
 const cheerio = require('cheerio');
-const createCsvWriter = require('csv-writer').createObjectCsvWriter;
 const fs = require('fs');
-const consts = require('./consts.js');
-
-const csvWriter = createCsvWriter({
-    path: 'anirec_data.csv',
-    header: [
-        { id: 'id', title: 'ID аниме' },
-        { id: 'name_ru', title: 'Название на русском' },
-        { id: 'name_en', title: 'Название на английском' },
-        { id: 'state', title: 'Статус' },
-        { id: 'type', title: 'Тип' },
-        { id: 'genres', title: 'Жанры' },
-        { id: 'episodes_num', title: 'Количество эпизодов' },
-        { id: 'release_year', title: 'Год выхода' },
-        { id: 'age_limit', title: 'Возрастное ограничение' }
-    ]
-});
 
 const animes = [];
-let anime_id = 1;
+let anime_id_end = 45000;
 let latest_anime_id = assignLatestAnimeId();
 
 function send_request(anime_id) {
@@ -28,11 +11,6 @@ function send_request(anime_id) {
         const url = `https://shikimori.one/animes/${anime_id}`;
         axios.get(url)
             .then(response => {
-                if (response.status === 404) {
-                console.log(`Anime with ID ${anime_id} not found. Skipping...`);
-                resolve();
-                return;
-                }
                 const $ = cheerio.load(response.data);
                 const anime_name_ru = $("h1")[0].children[0].data.trim(); // название на русском
                 if (anime_name_ru == 'Эта страница содержит "взрослый" контент, просматривать который могут только совершеннолетние пользователи.'){
@@ -43,7 +21,14 @@ function send_request(anime_id) {
                     resolve();
                     return;
                 }
-                const anime_name_en = $("h1")[0].children[2].data.trim(); // название на английском 
+                let anime_name_en;
+                try{
+                    anime_name_en = $("h1")[0].children[2].data.trim(); // название на английском
+                }
+                catch (e){
+                    resolve();
+                    return;
+                }
                 const anime_type = $("div.b-entry-info .line-container .line .value")[0].children[0].data; // тип
                 if (anime_type != "TV Сериал" && anime_type != "Фильм"){
                     let data = `${new Date().toUTCString()} : Anime with number ${anime_id} is neither a tv show nor film. Skipping...\n`;
@@ -52,6 +37,33 @@ function send_request(anime_id) {
                     })
                     resolve();
                     return;
+                }
+                let anime_description_parts 
+                try{
+                    anime_description_parts = $("div.b-text_with_paragraphs")[0].children;
+                }
+                catch(e){
+                    let data = `${new Date().toUTCString()} : Anime with number ${anime_id} doesn't have description. Skipping...\n`;
+                    fs.appendFile("logs.txt", data, function(err){
+                    if (err) throw err;
+                    })
+                    resolve();
+                    return;
+                }
+                let anime_description = "";
+                for (let part of anime_description_parts) {
+                    if (part.name == 'a') {
+                        try{
+                            anime_description += JSON.parse(part.attribs['data-attrs']).russian;
+                        }
+                        catch(e){
+                            anime_description += "\n";
+                        }
+                    } else if (part.name == 'br') {
+                        anime_description += "";
+                    } else {
+                        anime_description += part.data;
+                    }
                 }
                 const anime_status_html = $("span.b-anime_status_tag").attr("data-text"); // статус
                 let anime_status = "";
@@ -64,9 +76,20 @@ function send_request(anime_id) {
                     })
                     resolve();
                     return;
+                };
+                let anime_rating = 0;
+                try{
+                    anime_rating = Number($("div.score-value")[0].children[0].data); // рейтинг
                 }
-                const anime_rating = Number($("div.score-value")[0].children[0].data); // рейтинг
-                if (anime_rating < 6){
+                catch (e){
+                    let data = `${new Date().toUTCString()} : Anime with number ${anime_id} doesn't have rating. Skipping...\n`;
+                    fs.appendFile("logs.txt", data, function(err){
+                    if (err) throw err;
+                    })
+                    resolve();
+                    return;
+                }
+                if (anime_rating < 6.5){
                     let data = `${new Date().toUTCString()} : Anime with number ${anime_id} is too bad. Skipping...\n`;
                     fs.appendFile("logs.txt", data, function(err){
                     if (err) throw err;
@@ -93,11 +116,20 @@ function send_request(anime_id) {
                             break;
                         case "Статус":
                             if (anime_type == "TV Сериал" && anime_status != "Ещё выходит"){
-                            anime_release_year = Number(param_value
+                            try{anime_release_year = Number(param_value
                                 .children[1].next.attribs.title.trim()
                                 .split(' по ')[0].replace('С ', '', 1).replace(' г.', '', 1)
                                 .replace(' гг.', '').replace('в ', '').split('-')[0].split(' ').at(-1));
                             }
+                            catch(e){
+                                let data = `${new Date().toUTCString()} : Anime with id ${anime_id} had unexpected error\n`;
+                                fs.appendFile("logs.txt", data, function(err){
+                                if (err) throw err;
+                                })
+                                resolve();
+                                return;
+                            }
+                        }
                             else{
                             anime_release_year = Number(param_value
                                 .children[1].data.trim()
@@ -125,7 +157,7 @@ function send_request(anime_id) {
                                         anime_age_limit = "WARNING: DELETE HENTAI NOW";
                                         let data = `${new Date().toUTCString()} : Anime with number ${anime_id} is hentai. Skipping...\n`;
                                         fs.appendFile("logs.txt", data, function(err){
-                                        if (err) throw err;
+                                            if (err) throw err;
                                         })
                                         resolve();
                                         return;
@@ -146,12 +178,13 @@ function send_request(anime_id) {
                     genres: anime_genres.join(';'),
                     episodes_num: anime_episodes_num,
                     release_year: anime_release_year,
-                    age_limit: anime_age_limit
+                    age_limit: anime_age_limit,
+                    description: anime_description
                 };
                 //console.log(anime);
                 let data = `${new Date().toUTCString()} : Anime number ${anime_id} written successfully\n`;
                 fs.appendFile("logs.txt", data, function(err){
-                if (err) throw err;
+                    if (err) throw err;
                 })
                 animes.push(anime);
                 resolve();
@@ -160,15 +193,14 @@ function send_request(anime_id) {
                 if (error.response && error.response.status === 404) {
                     let data = `${new Date().toUTCString()} : Anime with ID ${anime_id} not found. Skipping...\n`;
                     fs.appendFile("logs.txt", data, function(err){
-                    if (err) throw err;
+                        if (err) throw err;
                     })
                     resolve();
                 } else {
                     let data = `${new Date().toUTCString()} : Error fetching data at anime id = ${anime_id}:, ${error}\n`;
                     fs.appendFile("logs.txt", data, function(err){
-                    if (err) throw err;
+                        if (err) throw err;
                     })
-                    writeToCSV();
                     reject(error);
                 }
             });
@@ -186,28 +218,18 @@ async function assignLatestAnimeId() {
     latest_anime_id = await find_last_anime();
 }
 
-async function writeToCSV(){
-    await csvWriter.writeRecords(animes)
-    .then(() => {
-        console.log('...Done writing');
-    });
-    console.log(`Количество записей: ${animes.length}`);
-    console.log(`Количество столбцов: ${Object.keys(animes[0]).length}`);
-}
-
-async function main() {
-    await assignLatestAnimeId();
-    while (anime_id <= latest_anime_id) {
-        try{
+module.exports = async function get_all_animes() {
+    try {
+        await assignLatestAnimeId();
+        anime_id = 57703;
+        while (anime_id >= anime_id_end) {
             await send_request(anime_id);
-        }
-        finally{
-            anime_id++;
+            anime_id--;
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
+    } catch (error) {
+        console.error('Critical error:', error);
+    } finally {
+        return animes;
     }
-    //console.log(animes);
-    await writeToCSV();
 }
-
-main();
