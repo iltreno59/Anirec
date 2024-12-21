@@ -37,8 +37,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     global user_name, predictions, index  # Используем глобальные переменные
-
     user_name = str(update.message.text)  # Сохраняем имя пользователя
+    index = 0
+    predictions = []
     link = f"https://shikimori.one/{user_name.replace(' ', '+')}/list/anime?order=rate_score"
     await update.message.reply_text("Приступаю к работе...")
     run_collect_data_user(link)
