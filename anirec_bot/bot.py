@@ -10,20 +10,19 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 from anirec_token import TOKEN
 
-# Глобальные переменные
 predictions = []  # Список для хранения предсказаний
 index = 0  # Глобальный индекс для отслеживания текущего аниме
 user_name = None  # Глобальная переменная для хранения имени пользователя
 
 class Anime:
     def __init__(self, name_ru, anime_type, genres, episodes_num, release_year, age_limit, user_rating):
-        self.name_ru = name_ru  # Убрали запятую
-        self.anime_type = anime_type  # Убрали запятую
-        self.genres = genres  # Убрали запятую
-        self.episodes_num = episodes_num  # Убрали запятую
-        self.release_year = release_year  # Убрали запятую
-        self.age_limit = age_limit  # Убрали запятую
-        self.user_rating = user_rating  # Убрали запятую
+        self.name_ru = name_ru  
+        self.anime_type = anime_type  
+        self.genres = genres  
+        self.episodes_num = episodes_num 
+        self.release_year = release_year 
+        self.age_limit = age_limit  
+        self.user_rating = user_rating  
 
 def run_collect_data_user(url):
     try:
@@ -36,7 +35,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text('Привет! Я бот Anirec. Могу подобрать аниме вам по вкусам. Для этого отправьте мне имя пользователя на Шикимори.')
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global user_name, predictions, index  # Используем глобальные переменные
+    global user_name, predictions, index  
     user_name = str(update.message.text)  # Сохраняем имя пользователя
     index = 0
     predictions = []
@@ -89,10 +88,10 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     data = []
     for anime in user_list:
-        anime_xy = [anime.name_ru, anime.anime_type, anime.genres, anime.episodes_num, anime.release_year, anime.age_limit, anime.user_rating]
+        anime_xy = [anime.anime_type, anime.genres, anime.episodes_num, anime.release_year, anime.age_limit, anime.user_rating]
         data.append(anime_xy)
 
-    df = pd.DataFrame(data, columns=["Название", "Тип", "Жанры", "Эпизоды", "Год выпуска", "Возрастной рейтинг", "Оценка"])
+    df = pd.DataFrame(data, columns=["Тип", "Жанры", "Эпизоды", "Год выпуска", "Возрастной рейтинг", "Оценка"])
 
     df["Тип"] = df["Тип"].astype("category").cat.codes
 
@@ -111,7 +110,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     numerical_df = pd.DataFrame(numerical_features, columns=["Эпизоды", "Возрастной рейтинг", "Год выпуска"])
 
     X = pd.concat([pd.DataFrame(df["Тип"]), genres_df, numerical_df], axis=1)
-    y = df["Оценка"]  # Целевая переменная
+    y = df["Оценка"]  
 
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X, y)
@@ -127,7 +126,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cursor.execute(select_query2)
         for row in cursor:
             if row[5] is None or row[6] is None or row[7] is None:
-                continue  # Пропускаем строки с пустыми значениями
+                continue 
 
             sample = {
                 "Тип": 0 if row[2] == 'TV Сериал' else 1,
@@ -145,7 +144,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             predictions.append((row[1], pred[0]))  # Добавляем предсказание в список
 
         sorted_predictions = sorted(predictions, key=lambda x: x[1], reverse=True)
-        predictions = sorted_predictions  # Обновляем список предсказаний
+        predictions = sorted_predictions 
 
         await show_next_anime(update, context)
     except psycopg2.Error as e:
@@ -154,9 +153,8 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
 async def show_next_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global index, predictions  # Используем глобальные переменные
+    global index, predictions  
 
-    # Определяем, откуда пришло сообщение: из текстового сообщения или из callback_query
     message = update.message or update.callback_query.message
 
     if index >= len(predictions):
@@ -212,7 +210,7 @@ async def show_next_anime(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await message.reply_text(f"Я рекомендую вам посмотреть: {anime_name}\nТип: {anime_type}\nСтатус: {anime_state}\nЧисло эпизодов: {anime_episodes}\nЖанры: {anime_genres.replace(';', ', ')}\nГод выхода: {anime_release_year}\nВозрастное ограничение: {anime_age_limit}+\nОписание:\n{anime_description}", reply_markup=reply_markup)
 
-    index += 1  # Увеличиваем индекс для следующего аниме
+    index += 1 
 
 async def next_anime_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

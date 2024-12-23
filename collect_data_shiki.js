@@ -221,7 +221,7 @@ async function assignLatestAnimeId() {
 module.exports = async function get_all_animes() {
     try {
         await assignLatestAnimeId();
-        anime_id = 57703;
+        anime_id = 57747;
         while (anime_id >= anime_id_end) {
             await send_request(anime_id);
             anime_id--;
